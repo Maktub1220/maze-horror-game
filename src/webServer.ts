@@ -100,6 +100,12 @@ function createLabeledOptions(
   choice: NonNullable<GameState["pending_choice"]>,
 ): LabeledOption[] {
   return choice.options.map((value, index) => {
+    if (choice.kind === "option") {
+      if (choice.choice_id === "normal_sleep_gas_confirm" && value === "confirm_shuffle") {
+        return { value, label: "触发催眠瓦斯" };
+      }
+    }
+
     if (choice.kind === "target_player" || choice.kind === "target_player_with_key") {
       if (value === NO_INSPECT_TARGET_PLAYER_ID) {
         return { value, label: "谁都不看（宣告为空房间并放回）" };
