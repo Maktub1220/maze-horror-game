@@ -337,6 +337,19 @@ function evaluateBranches(
 
 function executeAction(state: GameState, step: ActionStep, context: EffectContext): GameState {
   switch (step.action) {
+    case "announce_sleep_gas_shuffle": {
+      emitEvent(state, {
+        type: "announce",
+        value: "sleep_gas_shuffle",
+        text: "触发催眠瓦斯、所有卡牌打乱",
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: context.current_card_instance_id,
+        target_card_id: "sleep_gas",
+        visibility: "public",
+      });
+      return state;
+    }
+
     case "announce_card": {
       const currentCard = getCurrentCard(state);
       emitEvent(state, {

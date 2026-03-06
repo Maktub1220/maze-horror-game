@@ -285,6 +285,9 @@
                   ],
                   "use_effect": [
                     {
+                      "action": "announce_sleep_gas_shuffle"
+                    },
+                    {
                       "action": "collect_current_player_front_cards"
                     },
                     {
@@ -307,19 +310,37 @@
           {
             "else": [
               {
-                "action": "collect_current_player_front_cards"
+                "action": "prompt_choice",
+                "choice_id": "normal_sleep_gas_confirm",
+                "options": [
+                  "confirm_shuffle"
+                ]
               },
               {
-                "action": "move_this_card_to_removed_from_game"
-              },
-              {
-                "action": "collect_all_board_cards"
-              },
-              {
-                "action": "shuffle_collection"
-              },
-              {
-                "action": "redistribute_collection_to_board_face_down"
+                "action": "resolve_choice",
+                "choice_id": "normal_sleep_gas_confirm",
+                "branches": {
+                  "confirm_shuffle": [
+                    {
+                      "action": "announce_sleep_gas_shuffle"
+                    },
+                    {
+                      "action": "collect_current_player_front_cards"
+                    },
+                    {
+                      "action": "move_this_card_to_removed_from_game"
+                    },
+                    {
+                      "action": "collect_all_board_cards"
+                    },
+                    {
+                      "action": "shuffle_collection"
+                    },
+                    {
+                      "action": "redistribute_collection_to_board_face_down"
+                    }
+                  ]
+                }
               }
             ]
           }
@@ -1020,6 +1041,11 @@
       "id": "reveal_selected_face_down_key_of_target",
       "params": [],
       "description": "???????????????"
+    },
+    {
+      "id": "announce_sleep_gas_shuffle",
+      "params": [],
+      "description": "??????????????????"
     }
   ],
   "state_schema": {

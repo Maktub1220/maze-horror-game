@@ -235,10 +235,13 @@ describe("红色的门与杀人鬼的钥匙 - 基础版纯逻辑引擎", () => {
     state = flipCard(state, p1, gasId);
     expect(state.pending_reaction).not.toBeNull();
     state = resolvePendingReaction(state, p1, { reaction_id: "play_as_drawn" });
+    expect(state.pending_choice?.choice_id).toBe("normal_sleep_gas_confirm");
+    state = resolvePendingChoice(state, p1, { option: "confirm_shuffle" });
 
     expect(state.pending_choice).toBeNull();
     expect(state.removed_from_game.some((card) => card.instance_id === gasId)).toBe(true);
     expect(state.board_face_down_cards.some((card) => card.instance_id === gasId)).toBe(false);
+    expect(state.event_log.some((event) => event.text === "触发催眠瓦斯、所有卡牌打乱")).toBe(true);
   });
 
   it("9) 持枪玩家翻到有子弹房间可击杀目标并触发重洗", () => {
@@ -494,6 +497,8 @@ describe("红色的门与杀人鬼的钥匙 - 基础版纯逻辑引擎", () => {
     const gasId = findBoardCardInstanceId(state, "sleep_gas", 0);
     state = flipCard(state, p2, gasId);
     state = resolvePendingReaction(state, p2, { reaction_id: "play_as_drawn" });
+    expect(state.pending_choice?.choice_id).toBe("normal_sleep_gas_confirm");
+    state = resolvePendingChoice(state, p2, { option: "confirm_shuffle" });
 
     expect(state.board_slots.some((slot) => slot === null)).toBe(false);
     expect(state.board_slots.length).toBe(state.board_face_down_cards.length);
