@@ -119,6 +119,7 @@ export interface EffectContext {
   target_player_id?: string;
   chosen_board_card_instance_id?: string;
   target_player_with_key_id?: string;
+  chosen_target_key_instance_id?: string;
   revealed_card_instance_id?: string;
   chosen_key_instance_ids?: string[];
   revealed_escape_all_real?: boolean;
@@ -131,11 +132,25 @@ export interface Continuation {
   source: "card_effect";
 }
 
+export interface ReactionOption {
+  id: string;
+  label: string;
+}
+
+export interface ReactionState {
+  player_id: string;
+  card_instance_id: string;
+  card_id: string;
+  card_name: string;
+  options: ReactionOption[];
+}
+
 export type PendingChoiceKind =
   | "option"
   | "target_player"
   | "board_card"
   | "target_player_with_key"
+  | "target_player_key"
   | "three_keys";
 
 export const NO_INSPECT_TARGET_PLAYER_ID = "__no_inspect__";
@@ -164,12 +179,27 @@ export interface EventLogEntry {
     | "announce"
     | "announce_as"
     | "peek"
+    | "peek_started"
+    | "peek_returned"
+    | "key_inspection_result"
     | "choice_prompt"
     | "death_cancelled"
-    | "winner";
+    | "winner"
+    | "card_flipped"
+    | "player_died"
+    | "player_eliminated"
+    | "turn_advanced"
+    | "item_equipped";
   value: string;
-  player_id?: string;
-  card_instance_id?: string;
+  text: string;
+  actor_player_id?: string;
+  target_player_id?: string;
+  target_card_instance_id?: string;
+  target_card_id?: string;
+  visibility: "public" | "actor_only" | "actor_and_target";
+  at_turn: number;
+  at_seq: number;
+  payload?: Record<string, unknown>;
 }
 
 export type ShuffleFn = <T>(items: readonly T[]) => T[];
@@ -180,9 +210,11 @@ export interface GameState {
   phase: Phase;
   players: Player[];
   board_face_down_cards: CardInstance[];
+  board_slots: Array<string | null>;
   removed_from_game: CardInstance[];
   current_player_index: number;
   current_card_instance_id: string | null;
+  pending_reaction: ReactionState | null;
   pending_choice: ChoiceState | null;
   temporary_collection: CardInstance[];
   death_state: DeathState;
@@ -197,14 +229,20 @@ export interface ResolveChoiceInput {
   option?: string;
   target_player_id?: string;
   board_card_instance_id?: string;
+  target_key_instance_id?: string;
   key_instance_ids?: string[];
 }
 
+export interface ResolveReactionInput {
+  reaction_id: string;
+}
+
 export interface LegalAction {
-  type: "flip_card" | "resolve_choice";
+  type: "flip_card" | "resolve_choice" | "resolve_reaction";
   player_id: string;
   card_instance_id?: string;
   choice_id?: string;
   options?: string[];
   kind?: PendingChoiceKind;
+  reaction_options?: ReactionOption[];
 }

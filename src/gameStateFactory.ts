@@ -3,17 +3,19 @@ import { defaultShuffle } from "./shuffle.js";
 
 function createDeck(rules: RulesPackage) {
   const deck = [] as GameState["temporary_collection"];
+  let sequence = 1;
 
   for (const card of rules.cards) {
     for (let i = 0; i < card.count; i += 1) {
       deck.push({
-        instance_id: `${card.id}__${i + 1}`,
+        instance_id: `c_${sequence}`,
         card_id: card.id,
         name: card.name,
         owner_player_id: null,
         zone: "board_face_down",
         face_up: false,
       });
+      sequence += 1;
     }
   }
 
@@ -60,9 +62,11 @@ export function createInitialGameState(
       zone: "board_face_down",
       face_up: false,
     })),
+    board_slots: shuffledDeck.map((card) => card.instance_id),
     removed_from_game: [],
     current_player_index: 0,
     current_card_instance_id: null,
+    pending_reaction: null,
     pending_choice: null,
     temporary_collection: [],
     death_state: {

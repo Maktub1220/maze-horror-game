@@ -23,9 +23,16 @@ export function cloneTestState(state: GameState): GameState {
       front_face_up_cards: player.front_face_up_cards.map((card) => ({ ...card })),
     })),
     board_face_down_cards: state.board_face_down_cards.map((card) => ({ ...card })),
+    board_slots: [...state.board_slots],
     removed_from_game: state.removed_from_game.map((card) => ({ ...card })),
     temporary_collection: state.temporary_collection.map((card) => ({ ...card })),
     death_state: { ...state.death_state },
+    pending_reaction: state.pending_reaction
+      ? {
+          ...state.pending_reaction,
+          options: state.pending_reaction.options.map((option) => ({ ...option })),
+        }
+      : null,
     pending_choice: state.pending_choice
       ? {
           ...state.pending_choice,
@@ -71,6 +78,7 @@ export function withBoardOrder(state: GameState, cardIds: string[]): GameState {
 
   const rest = cloned.board_face_down_cards.filter((card) => !used.has(card.instance_id));
   cloned.board_face_down_cards = [...ordered, ...rest];
+  cloned.board_slots = cloned.board_face_down_cards.map((card) => card.instance_id);
   return cloned;
 }
 

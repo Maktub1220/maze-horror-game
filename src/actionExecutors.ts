@@ -19,6 +19,7 @@ import {
   getPlayerById,
   isKeyCard,
 } from "./derivedQueries.js";
+import { emitEvent, playerLabel } from "./events.js";
 import { checkWinConditions, evaluateCheck, resolveWinnerTarget } from "./ruleEvaluators.js";
 
 function cloneContext(context: EffectContext): EffectContext {
@@ -41,9 +42,73 @@ function removeCardByInstanceId(cards: CardInstance[], instanceId: string): Card
   return card;
 }
 
+function findBoardSlotIndex(state: GameState, instanceId: string): number {
+  return state.board_slots.findIndex((slot) => slot === instanceId);
+}
+
+function clearBoardSlotForInstance(state: GameState, instanceId: string): number {
+  const slotIndex = findBoardSlotIndex(state, instanceId);
+  if (slotIndex >= 0) {
+    state.board_slots[slotIndex] = null;
+  }
+  return slotIndex;
+}
+
+function placeCardOnBoard(
+  state: GameState,
+  card: CardInstance,
+  preferredSlotIndex?: number,
+): void {
+  const existingBoardIndex = state.board_face_down_cards.findIndex(
+    (item) => item.instance_id === card.instance_id,
+  );
+  if (existingBoardIndex >= 0) {
+    state.board_face_down_cards.splice(existingBoardIndex, 1);
+  }
+  clearBoardSlotForInstance(state, card.instance_id);
+
+  const boardCard: CardInstance = {
+    ...card,
+    owner_player_id: null,
+    zone: "board_face_down",
+    face_up: false,
+  };
+  state.board_face_down_cards.push(boardCard);
+
+  if (typeof preferredSlotIndex === "number" && preferredSlotIndex >= 0) {
+    while (state.board_slots.length <= preferredSlotIndex) {
+      state.board_slots.push(null);
+    }
+    state.board_slots[preferredSlotIndex] = boardCard.instance_id;
+    return;
+  }
+
+  const firstEmptyIndex = state.board_slots.findIndex((slot) => slot === null);
+  if (firstEmptyIndex >= 0) {
+    state.board_slots[firstEmptyIndex] = boardCard.instance_id;
+    return;
+  }
+
+  state.board_slots.push(boardCard.instance_id);
+}
+
+function formatBoardSlotLabel(state: GameState, instanceId: string): string {
+  const slotIndex = state.board_slots.findIndex((slot) => slot === instanceId);
+  if (slotIndex < 0) {
+    return "未知房间";
+  }
+  return `未知房间 #${slotIndex + 1}`;
+}
+
 function removeCardFromAllZones(state: GameState, instanceId: string): CardInstance | undefined {
-  const fromBoard = removeCardByInstanceId(state.board_face_down_cards, instanceId);
-  if (fromBoard) return fromBoard;
+  const boardIndex = state.board_face_down_cards.findIndex(
+    (card) => card.instance_id === instanceId,
+  );
+  if (boardIndex >= 0) {
+    const [fromBoard] = state.board_face_down_cards.splice(boardIndex, 1);
+    clearBoardSlotForInstance(state, instanceId);
+    return fromBoard;
+  }
 
   const fromTemp = removeCardByInstanceId(state.temporary_collection, instanceId);
   if (fromTemp) return fromTemp;
@@ -94,12 +159,6 @@ function addPendingChoice(
       source: "card_effect",
     },
   };
-
-  state.event_log.push({
-    type: "choice_prompt",
-    value: choiceId,
-    player_id: context.current_player_id,
-  });
 }
 
 export function appendPendingContinuation(state: GameState, actions: ActionStep[]): GameState {
@@ -143,6 +202,7 @@ function collectBoardCards(state: GameState): void {
   }));
 
   state.board_face_down_cards = [];
+  state.board_slots = [];
   state.temporary_collection.push(...collected);
 }
 
@@ -153,6 +213,7 @@ function redistributeCollectionToBoard(state: GameState): void {
     face_up: false,
     zone: "board_face_down",
   }));
+  state.board_slots = state.board_face_down_cards.map((card) => card.instance_id);
   state.temporary_collection = [];
 }
 
@@ -160,7 +221,13 @@ function setWinner(state: GameState, winnerTarget: string): void {
   const winner = resolveWinnerTarget(state, winnerTarget);
   state.winner = winner;
   state.phase = "ended";
-  state.event_log.push({ type: "winner", value: winner.team });
+  emitEvent(state, {
+    type: "winner",
+    value: winner.team,
+    text: `胜利阵营：${winner.team}`,
+    visibility: "public",
+    payload: { player_ids: winner.player_ids },
+  });
 }
 
 function runDeathResolution(state: GameState, context: EffectContext): GameState {
@@ -194,10 +261,15 @@ function tryUseBulletproofVest(
     face_up: true,
   });
 
-  state.event_log.push({
+  emitEvent(state, {
     type: "death_cancelled",
     value: deathSource,
-    player_id: targetPlayerId,
+    text: `${playerLabel(state, targetPlayerId)} 的防弹背心抵消了 ${deathSource}`,
+    actor_player_id: targetPlayerId,
+    target_player_id: targetPlayerId,
+    target_card_id: "bulletproof_vest",
+    visibility: "public",
+    payload: { death_source: deathSource },
   });
 
   return true;
@@ -223,6 +295,15 @@ function applyKillAttempt(
     last_dead_player_id: targetPlayerId,
     death_source: source,
   };
+  emitEvent(state, {
+    type: "player_died",
+    value: source,
+    text: `${playerLabel(state, targetPlayerId)} 死亡（来源：${source}）`,
+    actor_player_id: context.current_player_id,
+    target_player_id: targetPlayerId,
+    visibility: "public",
+    payload: { death_source: source },
+  });
 
   return runDeathResolution(state, context);
 }
@@ -257,11 +338,15 @@ function evaluateBranches(
 function executeAction(state: GameState, step: ActionStep, context: EffectContext): GameState {
   switch (step.action) {
     case "announce_card": {
-      state.event_log.push({
+      const currentCard = getCurrentCard(state);
+      emitEvent(state, {
         type: "announce",
         value: String(step.value ?? ""),
-        player_id: context.current_player_id,
-        card_instance_id: context.current_card_instance_id,
+        text: `${playerLabel(state, context.current_player_id)} 宣告：${String(step.value ?? "")}`,
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: context.current_card_instance_id,
+        target_card_id: currentCard.card_id,
+        visibility: "public",
       });
       return state;
     }
@@ -269,22 +354,23 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
     case "announce_card_as": {
       const currentCard = getCurrentCard(state);
       currentCard.announced_as = String(step.value ?? "");
-      state.event_log.push({
+      emitEvent(state, {
         type: "announce_as",
         value: String(step.value ?? ""),
-        player_id: context.current_player_id,
-        card_instance_id: context.current_card_instance_id,
+        text: `${playerLabel(state, context.current_player_id)} 宣告：${String(step.value ?? "")}`,
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: context.current_card_instance_id,
+        target_card_id: currentCard.card_id,
+        visibility: "public",
       });
       return state;
     }
 
     case "return_card_to_board_face_down": {
       const currentCardId = context.current_card_instance_id;
+      const preferredSlotIndex = findBoardSlotIndex(state, currentCardId);
       const currentCard = removeCardFromAllZones(state, currentCardId) ?? getCurrentCard(state);
-      currentCard.owner_player_id = null;
-      currentCard.zone = "board_face_down";
-      currentCard.face_up = false;
-      state.board_face_down_cards.push(currentCard);
+      placeCardOnBoard(state, currentCard, preferredSlotIndex);
       return state;
     }
 
@@ -301,6 +387,19 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
 
       if (faceUp) {
         player.front_face_up_cards.push(currentCard);
+        const cardDef = getCardDefinition(state, currentCard.card_id);
+        if (cardDef.type === "item") {
+          emitEvent(state, {
+            type: "item_equipped",
+            value: currentCard.card_id,
+            text: `${playerLabel(state, player.id)} 装备了 ${currentCard.name}`,
+            actor_player_id: player.id,
+            target_player_id: player.id,
+            target_card_instance_id: currentCard.instance_id,
+            target_card_id: currentCard.card_id,
+            visibility: "public",
+          });
+        }
       } else {
         player.front_face_down_cards.push(currentCard);
       }
@@ -423,12 +522,28 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
       if (!card) {
         throw new Error("Selected board card not found");
       }
+      const slotLabel = formatBoardSlotLabel(state, card.instance_id);
 
-      state.event_log.push({
+      emitEvent(state, {
+        type: "peek_started",
+        value: card.instance_id,
+        text: `${playerLabel(state, context.current_player_id)} 翻看了 ${slotLabel}`,
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: card.instance_id,
+        visibility: "public",
+        payload: {
+          slot_label: slotLabel,
+        },
+      });
+
+      emitEvent(state, {
         type: "peek",
-        value: card.card_id,
-        player_id: context.current_player_id,
-        card_instance_id: card.instance_id,
+        value: card.name,
+        text: `${playerLabel(state, context.current_player_id)} 查看到：${card.name}`,
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: card.instance_id,
+        target_card_id: card.card_id,
+        visibility: "actor_only",
       });
       return state;
     }
@@ -439,7 +554,19 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
 
       const card = getCardByInstanceId(state, selected);
       if (!card) return state;
+      const slotLabel = formatBoardSlotLabel(state, card.instance_id);
       card.face_up = false;
+      emitEvent(state, {
+        type: "peek_returned",
+        value: card.instance_id,
+        text: `${playerLabel(state, context.current_player_id)} 将 ${slotLabel} 放回场上`,
+        actor_player_id: context.current_player_id,
+        target_card_instance_id: card.instance_id,
+        visibility: "public",
+        payload: {
+          slot_label: slotLabel,
+        },
+      });
       return state;
     }
 
@@ -476,6 +603,64 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
         options,
         "target_player_with_key",
       );
+      return state;
+    }
+
+    case "choose_one_face_down_key_of_target": {
+      if (context.chosen_target_key_instance_id) {
+        return state;
+      }
+
+      const targetPlayer = getPlayerById(state, context.target_player_with_key_id ?? "");
+      if (!targetPlayer) return state;
+
+      const options = targetPlayer.front_face_down_cards
+        .filter((card) => isKeyCard(state, card.card_id))
+        .map((card) => card.instance_id);
+
+      addPendingChoice(
+        state,
+        context,
+        "choose_one_face_down_key_of_target",
+        options,
+        "target_player_key",
+      );
+      return state;
+    }
+
+    case "reveal_selected_face_down_key_of_target": {
+      const targetPlayer = getPlayerById(state, context.target_player_with_key_id ?? "");
+      if (!targetPlayer) return state;
+
+      const selectedId = context.chosen_target_key_instance_id;
+      if (!selectedId) {
+        throw new Error("No selected target key for reveal action");
+      }
+
+      const keyIndex = targetPlayer.front_face_down_cards.findIndex(
+        (card) => card.instance_id === selectedId && isKeyCard(state, card.card_id),
+      );
+      if (keyIndex < 0) {
+        throw new Error("Selected target key not found");
+      }
+
+      const [revealedCard] = targetPlayer.front_face_down_cards.splice(keyIndex, 1);
+      revealedCard.face_up = true;
+      revealedCard.zone = "player_front_face_up";
+      targetPlayer.front_face_up_cards.push(revealedCard);
+      context.revealed_card_instance_id = revealedCard.instance_id;
+
+      const isKillerKey = revealedCard.card_id === "killer_key";
+      emitEvent(state, {
+        type: "key_inspection_result",
+        value: revealedCard.card_id,
+        text: isKillerKey ? "发现杀人鬼钥匙并移除" : "发现银钥匙",
+        actor_player_id: context.current_player_id,
+        target_player_id: targetPlayer.id,
+        target_card_instance_id: revealedCard.instance_id,
+        target_card_id: revealedCard.card_id,
+        visibility: "public",
+      });
       return state;
     }
 
@@ -538,6 +723,11 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
           .map((card) => card.instance_id),
       );
 
+      if (options.length === 3) {
+        context.chosen_key_instance_ids = [...options];
+        return state;
+      }
+
       addPendingChoice(state, context, "choose_three_keys_from_all_players", options, "three_keys");
       return state;
     }
@@ -553,6 +743,15 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
     }
 
     case "set_winner": {
+      if (String(step.value) === "all_killers" && context.escape_failed_due_to_fake_key) {
+        emitEvent(state, {
+          type: "announce",
+          value: "escape_failed_killer_win",
+          text: "逃离失败、杀人鬼获胜",
+          actor_player_id: context.current_player_id,
+          visibility: "public",
+        });
+      }
       setWinner(state, String(step.value));
       return state;
     }
@@ -606,6 +805,7 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
     case "remove_last_dead_player_from_game": {
       const deadPlayerId = state.death_state.last_dead_player_id;
       if (!deadPlayerId) return state;
+      const deadPlayerName = playerLabel(state, deadPlayerId);
 
       const deadIndex = state.players.findIndex((player) => player.id === deadPlayerId);
       if (deadIndex < 0) return state;
@@ -615,6 +815,13 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
       }
 
       state.players.splice(deadIndex, 1);
+      emitEvent(state, {
+        type: "player_eliminated",
+        value: deadPlayerId,
+        text: `${deadPlayerName} 已出局`,
+        target_player_id: deadPlayerId,
+        visibility: "public",
+      });
 
       if (state.current_player_index >= state.players.length) {
         state.current_player_index = 0;
@@ -628,17 +835,21 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
     }
 
     case "create_deck_from_card_counts": {
+      state.board_face_down_cards = [];
+      state.board_slots = [];
       state.temporary_collection = [];
+      let sequence = 1;
       for (const cardDef of state.rules_package.cards) {
         for (let i = 0; i < cardDef.count; i += 1) {
           state.temporary_collection.push({
-            instance_id: `${cardDef.id}__${i + 1}`,
+            instance_id: `c_${sequence}`,
             card_id: cardDef.id,
             name: cardDef.name,
             owner_player_id: null,
             zone: "board_face_down",
             face_up: false,
           });
+          sequence += 1;
         }
       }
       return state;
@@ -656,6 +867,7 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
         zone: "board_face_down",
         face_up: false,
       }));
+      state.board_slots = state.board_face_down_cards.map((card) => card.instance_id);
       state.temporary_collection = [];
       return state;
     }
@@ -687,6 +899,7 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
 
     case "advance_turn_to_next_alive_player": {
       if (state.players.length === 0) return state;
+      const fromPlayerId = state.players[state.current_player_index]?.id;
       let next = state.current_player_index;
       let guard = 0;
       do {
@@ -696,6 +909,19 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
 
       state.current_player_index = next;
       state.turn_number += 1;
+      const toPlayerId = state.players[next]?.id;
+      emitEvent(state, {
+        type: "turn_advanced",
+        value: `${fromPlayerId ?? ""}->${toPlayerId ?? ""}`,
+        text: `回合切换：${playerLabel(state, fromPlayerId)} -> ${playerLabel(state, toPlayerId)}`,
+        actor_player_id: fromPlayerId,
+        target_player_id: toPlayerId,
+        visibility: "public",
+        payload: {
+          from_turn: state.turn_number - 1,
+          to_turn: state.turn_number,
+        },
+      });
       return state;
     }
 
@@ -799,6 +1025,7 @@ export function applyChoiceSelection(
     option?: string;
     target_player_id?: string;
     board_card_instance_id?: string;
+    target_key_instance_id?: string;
     key_instance_ids?: string[];
   },
 ): EffectContext {
@@ -849,6 +1076,17 @@ export function applyChoiceSelection(
       return context;
     }
 
+    case "target_player_key": {
+      if (!userChoice.target_key_instance_id) {
+        throw new Error("Target key instance id is required");
+      }
+      if (!pendingChoice.options.includes(userChoice.target_key_instance_id)) {
+        throw new Error("Invalid target key instance");
+      }
+      context.chosen_target_key_instance_id = userChoice.target_key_instance_id;
+      return context;
+    }
+
     case "three_keys": {
       const ids = userChoice.key_instance_ids ?? [];
       if (ids.length !== 3) {
@@ -878,18 +1116,32 @@ export function advanceTurn(state: GameState): GameState {
     return state;
   }
 
+  const fromPlayerId = state.players[state.current_player_index]?.id;
   let next = state.current_player_index;
   let guard = 0;
   do {
     next = (next + 1) % state.players.length;
     guard += 1;
   } while (!state.players[next].alive && guard <= state.players.length + 1);
-
-  return {
+  const toPlayerId = state.players[next]?.id;
+  const nextState = {
     ...state,
     current_player_index: next,
     turn_number: state.turn_number + 1,
   };
+  emitEvent(nextState, {
+    type: "turn_advanced",
+    value: `${fromPlayerId ?? ""}->${toPlayerId ?? ""}`,
+    text: `回合切换：${playerLabel(nextState, fromPlayerId)} -> ${playerLabel(nextState, toPlayerId)}`,
+    actor_player_id: fromPlayerId,
+    target_player_id: toPlayerId,
+    visibility: "public",
+    payload: {
+      from_turn: state.turn_number,
+      to_turn: state.turn_number + 1,
+    },
+  });
+  return nextState;
 }
 
 export function startCardResolution(
@@ -914,6 +1166,15 @@ export function startCardResolution(
     current_card_instance_id: cardInstanceId,
     choices: {},
   };
+  emitEvent(state, {
+    type: "card_flipped",
+    value: cardInstanceId,
+    text: `${playerLabel(state, currentPlayer.id)} 翻开了一张牌`,
+    actor_player_id: currentPlayer.id,
+    target_card_instance_id: cardInstanceId,
+    target_card_id: card.card_id,
+    visibility: "public",
+  });
 
   return { state, context };
 }

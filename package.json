@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/webServer.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "play": "npm run build && node dist/src/cli.js"
+    "play": "npm run build && node dist/src/cli.js",
+    "web": "npm run build && node dist/src/webServer.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",

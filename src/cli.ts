@@ -7,10 +7,16 @@ import {
   getPlayerPrivateStatus,
   getLegalActions,
   resolvePendingChoice,
+  resolvePendingReaction,
   serializeStateForPlayer,
   loadRulesFromFile,
 } from "./index.js";
-import { GameState, NO_INSPECT_TARGET_PLAYER_ID, ResolveChoiceInput } from "./models.js";
+import {
+  GameState,
+  NO_INSPECT_TARGET_PLAYER_ID,
+  ResolveChoiceInput,
+  ResolveReactionInput,
+} from "./models.js";
 
 function playerNameById(state: GameState, playerId: string): string {
   return state.players.find((player) => player.id === playerId)?.name ?? playerId;
@@ -48,32 +54,8 @@ function printNewEvents(state: GameState, fromIndex: number): number {
 
   console.log("\n事件:");
   for (const event of next) {
-    const playerName = event.player_id ? playerNameById(state, event.player_id) : "系统";
-    if (event.type === "announce") {
-      console.log(`- [公开] ${playerName}: ${event.value}`);
-      continue;
-    }
-    if (event.type === "announce_as") {
-      console.log(`- [伪装宣告] ${playerName}: ${event.value}`);
-      continue;
-    }
-    if (event.type === "peek") {
-      console.log(`- [查看] ${playerName} 看到了: ${event.value}`);
-      continue;
-    }
-    if (event.type === "choice_prompt") {
-      console.log(`- [选择] ${playerName}: ${event.value}`);
-      continue;
-    }
-    if (event.type === "death_cancelled") {
-      console.log(`- [免死] ${playerName}: 抵消 ${event.value}`);
-      continue;
-    }
-    if (event.type === "winner") {
-      console.log(`- [胜利] 阵营: ${event.value}`);
-      continue;
-    }
-    console.log(`- [${event.type}] ${playerName}: ${event.value}`);
+    const type = event.type === "announce_as" ? "announce" : event.type;
+    console.log(`- [${type}] ${event.text}`);
   }
 
   return state.event_log.length;
@@ -120,7 +102,7 @@ async function resolveChoiceFromCli(
     const options = pending.options;
     options.forEach((playerId, index) => {
       if (playerId === NO_INSPECT_TARGET_PLAYER_ID) {
-        console.log(`  [${index}] 谁都不看（伪装为空房间并放回）`);
+        console.log(`  [${index}] 谁都不看（宣告为空房间并放回）`);
         return;
       }
       console.log(`  [${index}] ${playerNameById(state, playerId)} (${playerId})`);
@@ -136,6 +118,15 @@ async function resolveChoiceFromCli(
     });
     const selected = await askIndex(rl, "选择场上背面牌编号: ", options.length);
     return { board_card_instance_id: options[selected] };
+  }
+
+  if (pending.kind === "target_player_key") {
+    const options = pending.options;
+    options.forEach((instanceId, index) => {
+      console.log(`  [${index}] 目标背面钥匙 #${index + 1} (${instanceId})`);
+    });
+    const selected = await askIndex(rl, "选择目标钥匙编号: ", options.length);
+    return { target_key_instance_id: options[selected] };
   }
 
   if (pending.kind === "three_keys") {
@@ -181,6 +172,24 @@ async function resolveChoiceFromCli(
   throw new Error(`Unsupported pending choice kind: ${pending.kind}`);
 }
 
+async function resolveReactionFromCli(
+  state: GameState,
+  rl: ReturnType<typeof createInterface>,
+): Promise<ResolveReactionInput> {
+  const pending = state.pending_reaction;
+  if (!pending) {
+    throw new Error("No pending reaction");
+  }
+
+  console.log(`\n你抽到的是：${pending.card_name} (${pending.card_id})`);
+  pending.options.forEach((option, index) => {
+    console.log(`  [${index}] ${option.label}`);
+  });
+
+  const selected = await askIndex(rl, "选择你的反应: ", pending.options.length);
+  return { reaction_id: pending.options[selected].id };
+}
+
 async function run(): Promise<void> {
   const rl = createInterface({ input, output });
 
@@ -210,6 +219,14 @@ async function run(): Promise<void> {
       printHeader("当前局面");
       printStateSummary(state);
       eventCursor = printNewEvents(state, eventCursor);
+
+      if (state.pending_reaction) {
+        const reactor = playerNameById(state, state.pending_reaction.player_id);
+        console.log(`\n轮到 ${reactor} 处理抽牌反应。`);
+        const reactionInput = await resolveReactionFromCli(state, rl);
+        state = resolvePendingReaction(state, state.pending_reaction.player_id, reactionInput);
+        continue;
+      }
 
       if (state.pending_choice) {
         const chooser = playerNameById(state, state.pending_choice.player_id);

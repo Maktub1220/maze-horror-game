@@ -1,0 +1,615 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>红色的门 - 在线版</title>
+    <style>
+      :root {
+        --bg: #f7f4ef;
+        --panel: #fffdfa;
+        --line: #d6cdc0;
+        --ink: #26211c;
+        --accent: #9b2c2c;
+        --accent-2: #2f6f5f;
+        --muted: #7a6f64;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at 15% 10%, #fff 0%, #f7f4ef 35%, #efe8de 100%);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      h1 { margin: 0 0 12px; font-size: 26px; }
+      .grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      input, button, select, textarea {
+        font: inherit;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: #fff;
+      }
+      button {
+        cursor: pointer;
+        background: #fff9f4;
+      }
+      button.primary {
+        border-color: var(--accent);
+        background: #fbeaea;
+      }
+      button.ok {
+        border-color: var(--accent-2);
+        background: #e8f5f1;
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .hidden { display: none; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; }
+      .muted { color: var(--muted); }
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 12px;
+      }
+      .danger { color: var(--accent); font-weight: 700; }
+      .board {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+      }
+      .board button {
+        min-height: 70px;
+        text-align: left;
+      }
+      .board .slot-empty {
+        border-style: dashed;
+        background: #f3eee6;
+        color: #9a8f84;
+      }
+      .board .slot-face-up {
+        border-color: #c99595;
+        background: #fdf1f1;
+      }
+      .board .anim-flip {
+        animation: flipTile 280ms ease;
+      }
+      .board .anim-return {
+        animation: returnTile 280ms ease;
+      }
+      .board .anim-deal {
+        animation: dealTile 220ms ease;
+      }
+      .board .anim-removed {
+        animation: removeTile 220ms ease;
+      }
+      @keyframes flipTile {
+        0% { transform: rotateY(0deg); }
+        50% { transform: rotateY(80deg); }
+        100% { transform: rotateY(0deg); }
+      }
+      @keyframes returnTile {
+        0% { transform: rotateY(0deg); }
+        50% { transform: rotateY(-80deg); }
+        100% { transform: rotateY(0deg); }
+      }
+      @keyframes dealTile {
+        0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes removeTile {
+        0% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0.55; transform: scale(0.98); }
+      }
+      ul { margin: 6px 0; padding-left: 18px; }
+      .log {
+        max-height: 260px;
+        overflow: auto;
+        background: #fff;
+        border: 1px dashed var(--line);
+        padding: 8px;
+        border-radius: 8px;
+      }
+      .small { font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>红色的门与杀人鬼的钥匙 <span class="muted">在线试玩</span></h1>
+
+      <div id="connectPanel" class="card">
+        <div class="row">
+          <input id="playerName" placeholder="你的名字" />
+          <button class="primary" id="createBtn">创建房间</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <input id="roomIdInput" placeholder="房间号（如 A1B2C3）" class="mono" />
+          <button id="joinBtn">加入房间</button>
+        </div>
+        <div id="connectMsg" class="small muted" style="margin-top:8px;"></div>
+      </div>
+
+      <div id="lobbyPanel" class="card hidden">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            房间号: <b id="lobbyRoomId" class="mono"></b>
+            <span id="hostTag" class="pill">房主</span>
+          </div>
+          <div class="row">
+            <button id="readyBtn" class="ok">我已准备</button>
+            <button id="startBtn" class="primary">开始游戏</button>
+          </div>
+        </div>
+        <div style="margin-top:8px;">玩家列表:</div>
+        <ul id="lobbyPlayers"></ul>
+      </div>
+
+      <div id="gamePanel" class="hidden">
+        <div class="grid">
+          <div class="card">
+            <div class="row" style="justify-content:space-between;">
+              <div>
+                房间: <b id="gameRoomId" class="mono"></b>
+              </div>
+              <div>
+                回合 <b id="turnNumber">-</b>
+              </div>
+            </div>
+            <div style="margin-top:8px;">你是: <b id="myDisplay">-</b></div>
+            <div style="margin-top:8px;">当前行动: <b id="currentPlayer">-</b></div>
+            <div style="margin-top:6px;">你的身份: <b id="myRole">-</b></div>
+            <div style="margin-top:6px;">你的状态: <span id="myAlive">-</span></div>
+            <div style="margin-top:6px;">已移出游戏牌数: <span id="removedCount">0</span></div>
+            <div id="winnerBox" class="danger" style="margin-top:10px;"></div>
+            <div id="restartBox" class="row hidden" style="margin-top:8px;">
+              <button id="restartBtn" class="primary">再开一局</button>
+              <span id="restartHint" class="small muted"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div><b>玩家信息</b></div>
+            <div id="playersBox" class="small" style="margin-top:6px;"></div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between;">
+              <b>待处理选择</b>
+              <span id="choiceMeta" class="small muted">无</span>
+            </div>
+            <div id="choiceBox" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="row" style="justify-content:space-between;">
+            <b>场上背面牌</b>
+            <span class="small muted">可点击你当前可翻的牌</span>
+          </div>
+          <div id="boardBox" class="board" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="row" style="justify-content:space-between;">
+            <b>事件日志</b>
+            <button id="requestUpdateBtn">刷新状态</button>
+          </div>
+          <div id="logBox" class="log small" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/runtime-config.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+    <script>
+      const queryParams = new URLSearchParams(window.location.search);
+      const queryServer = String(queryParams.get("server") || "").trim();
+      const runtimeServer = String(window.RED_DOOR_SOCKET_SERVER_URL || "").trim();
+      const socketServerUrl = queryServer || runtimeServer || window.location.origin;
+      const socket = io(socketServerUrl, {
+        transports: ["websocket", "polling"],
+      });
+
+      const connectPanel = document.getElementById("connectPanel");
+      const lobbyPanel = document.getElementById("lobbyPanel");
+      const gamePanel = document.getElementById("gamePanel");
+      const connectMsg = document.getElementById("connectMsg");
+
+      const playerNameInput = document.getElementById("playerName");
+      const roomIdInput = document.getElementById("roomIdInput");
+      const createBtn = document.getElementById("createBtn");
+      const joinBtn = document.getElementById("joinBtn");
+
+      const lobbyRoomId = document.getElementById("lobbyRoomId");
+      const hostTag = document.getElementById("hostTag");
+      const lobbyPlayers = document.getElementById("lobbyPlayers");
+      const readyBtn = document.getElementById("readyBtn");
+      const startBtn = document.getElementById("startBtn");
+
+      const gameRoomId = document.getElementById("gameRoomId");
+      const turnNumber = document.getElementById("turnNumber");
+      const currentPlayer = document.getElementById("currentPlayer");
+      const myDisplay = document.getElementById("myDisplay");
+      const myRole = document.getElementById("myRole");
+      const myAlive = document.getElementById("myAlive");
+      const removedCount = document.getElementById("removedCount");
+      const playersBox = document.getElementById("playersBox");
+      const boardBox = document.getElementById("boardBox");
+      const choiceMeta = document.getElementById("choiceMeta");
+      const choiceBox = document.getElementById("choiceBox");
+      const winnerBox = document.getElementById("winnerBox");
+      const restartBox = document.getElementById("restartBox");
+      const restartBtn = document.getElementById("restartBtn");
+      const restartHint = document.getElementById("restartHint");
+      const logBox = document.getElementById("logBox");
+      const requestUpdateBtn = document.getElementById("requestUpdateBtn");
+
+      let lastLobby = null;
+      let lastGame = null;
+      let previousBoardSlots = [];
+      let acknowledgedInsightSeq = 0;
+
+      function showPanel(mode) {
+        connectPanel.classList.toggle("hidden", mode !== "connect");
+        lobbyPanel.classList.toggle("hidden", mode !== "lobby");
+        gamePanel.classList.toggle("hidden", mode !== "game");
+      }
+
+      function getPlayerName() {
+        return (playerNameInput.value || "").trim();
+      }
+
+      function escapeHtml(raw) {
+        return String(raw)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function getPendingInsight(game, you) {
+        if (!game || !you || !you.player_id) return null;
+        const events = [...(game.events || [])].sort((a, b) => (b.at_seq || 0) - (a.at_seq || 0));
+        return (
+          events.find(
+            (event) =>
+              (event.type === "peek" || event.type === "key_inspection_result") &&
+              event.actor_player_id === you.player_id &&
+              (event.at_seq || 0) > acknowledgedInsightSeq,
+          ) || null
+        );
+      }
+
+      createBtn.addEventListener("click", () => {
+        const name = getPlayerName();
+        if (!name) {
+          connectMsg.textContent = "请输入名字";
+          return;
+        }
+        socket.emit("create_room", { player_name: name });
+      });
+
+      joinBtn.addEventListener("click", () => {
+        const name = getPlayerName();
+        const roomId = (roomIdInput.value || "").trim().toUpperCase();
+        if (!name || !roomId) {
+          connectMsg.textContent = "请输入名字和房间号";
+          return;
+        }
+        socket.emit("join_room", { room_id: roomId, player_name: name });
+      });
+
+      readyBtn.addEventListener("click", () => {
+        if (!lastLobby) return;
+        const me = lastLobby.lobby.players.find((p) => p.socket_id === lastLobby.you.socket_id);
+        socket.emit("set_ready", { ready: !me?.ready });
+      });
+
+      startBtn.addEventListener("click", () => {
+        socket.emit("start_game");
+      });
+
+      requestUpdateBtn.addEventListener("click", () => {
+        socket.emit("request_update");
+      });
+      restartBtn.addEventListener("click", () => {
+        socket.emit("restart_game");
+      });
+
+      socket.on("connect", () => {
+        connectMsg.textContent = `已连接服务器：${socketServerUrl}`;
+      });
+
+      socket.on("system_message", (msg) => {
+        connectMsg.textContent = String(msg);
+      });
+
+      socket.on("connect_error", (error) => {
+        connectMsg.textContent = `连接失败：${error.message}（当前服务器：${socketServerUrl}）`;
+      });
+
+      socket.on("room_error", (msg) => {
+        alert(String(msg));
+      });
+
+      socket.on("lobby_update", (payload) => {
+        lastLobby = payload;
+        showPanel("lobby");
+
+        lobbyRoomId.textContent = payload.room_id;
+        hostTag.style.display = payload.you.is_host ? "inline-block" : "none";
+
+        const me = payload.lobby.players.find((p) => p.socket_id === payload.you.socket_id);
+        readyBtn.textContent = me?.ready ? "取消准备" : "我已准备";
+        startBtn.disabled = !payload.you.is_host;
+
+        lobbyPlayers.innerHTML = payload.lobby.players
+          .map(
+            (p) =>
+              `<li>${escapeHtml(p.display_name)} ${p.socket_id === payload.lobby.host_socket_id ? "(房主)" : ""} - ${p.ready ? "已准备" : "未准备"}</li>`,
+          )
+          .join("");
+      });
+
+      function renderPlayers(game, you) {
+        playersBox.innerHTML = game.players
+          .map((p) => {
+            const up = p.front_face_up_cards.map((c) => c.name).join("，") || "无";
+            const keyCount = Number(p.key_count || 0);
+            const keyDisplay = keyCount > 0 ? "🔑".repeat(keyCount) : "无";
+            return `<div style="padding:6px 0;border-bottom:1px dashed #ddd;">
+              <b>${escapeHtml(p.name)}</b> (${escapeHtml(p.id)})
+              | ${p.alive ? "存活" : "出局"}
+              | 身份: ${escapeHtml(p.role)}
+              | 钥匙数量: ${escapeHtml(keyDisplay)}
+              | 明牌: ${escapeHtml(up)}
+            </div>`;
+          })
+          .join("");
+      }
+
+      function renderBoard(game) {
+        const legalSet = new Set(game.legal_actions.flip_card_instance_ids || []);
+        const previousBySlot = new Map(previousBoardSlots.map((slot) => [slot.slot_index, slot]));
+        boardBox.innerHTML = "";
+        for (const slot of game.board_slots) {
+          const btn = document.createElement("button");
+          const previous = previousBySlot.get(slot.slot_index);
+          const isOccupied = Boolean(slot.occupied && slot.instance_id);
+          const canFlip = isOccupied && legalSet.has(slot.instance_id);
+          btn.disabled = !canFlip;
+
+          if (!isOccupied) {
+            btn.classList.add("slot-empty");
+            btn.innerHTML = `<div><b>${escapeHtml(`空位 #${slot.slot_index}`)}</b></div>`;
+          } else {
+            const title = `未知房间 #${slot.slot_index}`;
+            btn.innerHTML = `<div><b>${escapeHtml(title)}</b></div>`;
+            btn.addEventListener("click", () => {
+              socket.emit("game_flip", { card_instance_id: slot.instance_id });
+            });
+          }
+
+          if (slot.face_up) {
+            btn.classList.add("slot-face-up");
+          }
+
+          if (previous) {
+            if (previous.occupied && !slot.occupied) {
+              btn.classList.add("anim-removed");
+            } else if (!previous.occupied && slot.occupied) {
+              btn.classList.add("anim-deal");
+            } else if (
+              previous.occupied &&
+              slot.occupied &&
+              previous.instance_id === slot.instance_id &&
+              !previous.face_up &&
+              slot.face_up
+            ) {
+              btn.classList.add("anim-flip");
+            } else if (
+              previous.occupied &&
+              slot.occupied &&
+              previous.instance_id === slot.instance_id &&
+              previous.face_up &&
+              !slot.face_up
+            ) {
+              btn.classList.add("anim-return");
+            }
+          }
+
+          boardBox.appendChild(btn);
+        }
+        previousBoardSlots = game.board_slots.map((slot) => ({ ...slot }));
+      }
+
+      function renderChoice(game, you) {
+        choiceBox.innerHTML = "";
+
+        if (!game.pending_reaction && !game.pending_choice) {
+          const insight = getPendingInsight(game, you);
+          if (insight) {
+            choiceMeta.textContent = "情报确认";
+
+            const info = document.createElement("div");
+            info.style.marginBottom = "8px";
+            if (insight.type === "peek") {
+              info.innerHTML = `<b>你看到：</b>${escapeHtml(insight.value || insight.text || "未知")}`;
+            } else {
+              info.innerHTML = `<b>看穿结果：</b>${escapeHtml(insight.text || insight.value || "未知")}`;
+            }
+            choiceBox.appendChild(info);
+
+            const ackBtn = document.createElement("button");
+            ackBtn.className = "ok";
+            ackBtn.textContent = "我知道了";
+            ackBtn.addEventListener("click", () => {
+              acknowledgedInsightSeq = Math.max(acknowledgedInsightSeq, insight.at_seq || 0);
+              if (lastGame) {
+                renderChoice(lastGame.game, lastGame.you);
+              }
+            });
+            choiceBox.appendChild(ackBtn);
+            return;
+          }
+        }
+
+        if (game.pending_reaction) {
+          choiceMeta.textContent = `抽牌反应 (${game.pending_reaction.card_name})`;
+
+          const info = document.createElement("div");
+          info.style.marginBottom = "8px";
+          info.innerHTML = `<b>你抽到：</b>${escapeHtml(game.pending_reaction.card_name)}`;
+          choiceBox.appendChild(info);
+
+          for (const opt of game.pending_reaction.options) {
+            const btn = document.createElement("button");
+            btn.style.marginRight = "6px";
+            btn.style.marginBottom = "6px";
+            btn.textContent = opt.label;
+            btn.addEventListener("click", () => {
+              socket.emit("game_reaction", { reaction_id: opt.id });
+            });
+            choiceBox.appendChild(btn);
+          }
+          return;
+        }
+
+        if (!game.pending_choice) {
+          choiceMeta.textContent = "无（等待其他玩家动作）";
+          return;
+        }
+
+        const pc = game.pending_choice;
+        choiceMeta.textContent = `${pc.choice_id} (${pc.kind})`;
+
+        if (pc.kind === "three_keys") {
+          const form = document.createElement("div");
+          pc.options.forEach((opt) => {
+            const label = document.createElement("label");
+            label.style.display = "block";
+            label.innerHTML = `<input type="checkbox" value="${escapeHtml(opt.value)}" /> ${escapeHtml(opt.label)}`;
+            form.appendChild(label);
+          });
+
+          const submit = document.createElement("button");
+          submit.className = "primary";
+          submit.textContent = "提交 3 把钥匙";
+          submit.addEventListener("click", () => {
+            const checked = Array.from(form.querySelectorAll("input:checked")).map((n) => n.value);
+            if (checked.length !== 3) {
+              alert("必须选择 3 把钥匙");
+              return;
+            }
+            socket.emit("game_choice", { key_instance_ids: checked });
+          });
+
+          choiceBox.appendChild(form);
+          choiceBox.appendChild(submit);
+          return;
+        }
+
+        for (const opt of pc.options) {
+          const btn = document.createElement("button");
+          btn.style.marginRight = "6px";
+          btn.style.marginBottom = "6px";
+          btn.textContent = opt.label;
+          btn.addEventListener("click", () => {
+            if (pc.kind === "option") {
+              socket.emit("game_choice", { option: opt.value });
+              return;
+            }
+            if (pc.kind === "board_card") {
+              socket.emit("game_choice", { board_card_instance_id: opt.value });
+              return;
+            }
+            if (pc.kind === "target_player_key") {
+              socket.emit("game_choice", { target_key_instance_id: opt.value });
+              return;
+            }
+            socket.emit("game_choice", { target_player_id: opt.value });
+          });
+          choiceBox.appendChild(btn);
+        }
+      }
+
+      function renderLogs(game) {
+        function eventTypeLabel(type) {
+          if (type === "announce_as") return "announce";
+          return type;
+        }
+        logBox.innerHTML = game.events
+          .map((e) => `<div>• [${escapeHtml(eventTypeLabel(e.type))}] ${escapeHtml(e.text || e.value || "")}</div>`)
+          .join("");
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+
+      socket.on("game_update", (payload) => {
+        const latestSeq = (payload.game.events || []).reduce(
+          (maxSeq, event) => Math.max(maxSeq, event.at_seq || 0),
+          0,
+        );
+        if (
+          !lastGame ||
+          lastGame.room_id !== payload.room_id ||
+          latestSeq < acknowledgedInsightSeq
+        ) {
+          acknowledgedInsightSeq = 0;
+        }
+
+        lastGame = payload;
+        showPanel("game");
+
+        gameRoomId.textContent = payload.room_id;
+        turnNumber.textContent = payload.game.turn_number;
+        currentPlayer.textContent = payload.game.current_player_name || "-";
+        myDisplay.textContent = payload.you.player_id
+          ? `${payload.you.display_name} (${payload.you.player_id})`
+          : `${payload.you.display_name} (观战)`;
+
+        const ps = payload.you.private_status;
+        myRole.textContent = ps ? (ps.is_killer ? "杀人鬼" : "普通玩家") : "未知";
+        myAlive.textContent = ps ? (ps.alive ? "存活" : "出局") : "未知";
+
+        removedCount.textContent = String(payload.game.removed_count);
+        winnerBox.textContent = payload.game.winner
+          ? `胜利阵营: ${payload.game.winner.team} | 获胜玩家: ${payload.game.winner.player_ids.join(", ")}`
+          : "";
+        const ended = Boolean(payload.game.winner);
+        restartBox.classList.toggle("hidden", !ended);
+        if (ended) {
+          const isHost = Boolean(payload.you.is_host);
+          restartBtn.style.display = isHost ? "inline-block" : "none";
+          restartHint.textContent = isHost ? "你是房主，可重开游戏" : "等待房主重开游戏";
+        } else {
+          restartBtn.style.display = "none";
+          restartHint.textContent = "";
+        }
+
+        renderPlayers(payload.game, payload.you);
+        renderBoard(payload.game);
+        renderChoice(payload.game, payload.you);
+        renderLogs(payload.game);
+      });
+
+      showPanel("connect");
+    </script>
+  </body>
+</html>

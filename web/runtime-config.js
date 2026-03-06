@@ -1,0 +1,1 @@
+window.RED_DOOR_SOCKET_SERVER_URL = "";

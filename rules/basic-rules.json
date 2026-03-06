@@ -35,12 +35,19 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": false,
-      "tags": ["room"],
+      "tags": [
+        "room"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "announce_card", "value": "什么都没有的房间" },
-          { "action": "return_card_to_board_face_down" }
+          {
+            "action": "announce_card",
+            "value": "什么都没有的房间"
+          },
+          {
+            "action": "return_card_to_board_face_down"
+          }
         ]
       }
     },
@@ -55,13 +62,25 @@
       "keep_zone": "player_front_face_down",
       "visibility_when_kept": "face_down",
       "can_bluff_as_empty": false,
-      "tags": ["key", "real_key"],
+      "tags": [
+        "key",
+        "real_key"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "announce_card", "value": "银钥匙" },
-          { "action": "move_card_to_player_front", "face_up": false },
-          { "action": "run_rule", "rule_id": "fourth_key_trigger_check" }
+          {
+            "action": "announce_card",
+            "value": "银钥匙"
+          },
+          {
+            "action": "move_card_to_player_front",
+            "face_up": false
+          },
+          {
+            "action": "run_rule",
+            "rule_id": "fourth_key_trigger_check"
+          }
         ]
       }
     },
@@ -76,14 +95,30 @@
       "keep_zone": "player_front_face_down",
       "visibility_when_kept": "face_down",
       "can_bluff_as_empty": false,
-      "tags": ["key", "fake_key", "identity_source"],
+      "tags": [
+        "key",
+        "fake_key",
+        "identity_source"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "set_player_role", "role": "killer" },
-          { "action": "announce_card_as", "value": "银钥匙" },
-          { "action": "move_card_to_player_front", "face_up": false },
-          { "action": "run_rule", "rule_id": "fourth_key_trigger_check" }
+          {
+            "action": "set_player_role",
+            "role": "killer"
+          },
+          {
+            "action": "announce_card_as",
+            "value": "银钥匙"
+          },
+          {
+            "action": "move_card_to_player_front",
+            "face_up": false
+          },
+          {
+            "action": "run_rule",
+            "rule_id": "fourth_key_trigger_check"
+          }
         ]
       }
     },
@@ -98,29 +133,48 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": true,
-      "tags": ["room", "exit"],
+      "tags": [
+        "room",
+        "exit"
+      ],
       "on_flip": {
         "mode": "branch",
         "branches": [
           {
-            "if": { "check": "team_total_keys_at_least", "value": 3 },
+            "if": {
+              "check": "team_total_keys_at_least",
+              "value": 3
+            },
             "then": [
               {
                 "action": "prompt_choice",
                 "choice_id": "start_escape_challenge",
-                "options": ["yes", "no"]
+                "options": [
+                  "yes",
+                  "no"
+                ]
               },
               {
                 "action": "resolve_choice",
                 "choice_id": "start_escape_challenge",
                 "branches": {
                   "yes": [
-                    { "action": "reveal_current_card" },
-                    { "action": "run_rule", "rule_id": "escape_challenge" }
+                    {
+                      "action": "reveal_current_card"
+                    },
+                    {
+                      "action": "run_rule",
+                      "rule_id": "escape_challenge"
+                    }
                   ],
                   "no": [
-                    { "action": "announce_card_as", "value": "什么都没有的房间" },
-                    { "action": "return_card_to_board_face_down" }
+                    {
+                      "action": "announce_card_as",
+                      "value": "什么都没有的房间"
+                    },
+                    {
+                      "action": "return_card_to_board_face_down"
+                    }
                   ]
                 }
               }
@@ -128,8 +182,13 @@
           },
           {
             "else": [
-              { "action": "announce_card_as", "value": "什么都没有的房间" },
-              { "action": "return_card_to_board_face_down" }
+              {
+                "action": "announce_card_as",
+                "value": "什么都没有的房间"
+              },
+              {
+                "action": "return_card_to_board_face_down"
+              }
             ]
           }
         ]
@@ -146,22 +205,35 @@
       "keep_zone": "player_front_face_up",
       "visibility_when_kept": "face_up",
       "can_bluff_as_empty": false,
-      "tags": ["item", "defense"],
+      "tags": [
+        "item",
+        "defense"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "move_card_to_player_front", "face_up": true }
+          {
+            "action": "move_card_to_player_front",
+            "face_up": true
+          }
         ]
       },
       "passive_effects": [
         {
           "trigger": "before_player_death",
           "condition": {
-            "death_source_in": ["killer_trap", "pistol"]
+            "death_source_in": [
+              "killer_trap",
+              "pistol"
+            ]
           },
           "steps": [
-            { "action": "cancel_death" },
-            { "action": "move_this_card_to_removed_from_game" }
+            {
+              "action": "cancel_death"
+            },
+            {
+              "action": "move_this_card_to_removed_from_game"
+            }
           ]
         }
       ]
@@ -177,32 +249,56 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": true,
-      "tags": ["red_card", "reset"],
+      "tags": [
+        "red_card",
+        "reset"
+      ],
       "on_flip": {
         "mode": "branch",
         "branches": [
           {
-            "if": { "check": "player_role_is", "value": "killer" },
+            "if": {
+              "check": "player_role_is",
+              "value": "killer"
+            },
             "then": [
               {
                 "action": "prompt_choice",
                 "choice_id": "killer_sleep_gas_mode",
-                "options": ["pretend_empty", "use_effect"]
+                "options": [
+                  "pretend_empty",
+                  "use_effect"
+                ]
               },
               {
                 "action": "resolve_choice",
                 "choice_id": "killer_sleep_gas_mode",
                 "branches": {
                   "pretend_empty": [
-                    { "action": "announce_card_as", "value": "什么都没有的房间" },
-                    { "action": "return_card_to_board_face_down" }
+                    {
+                      "action": "announce_card_as",
+                      "value": "什么都没有的房间"
+                    },
+                    {
+                      "action": "return_card_to_board_face_down"
+                    }
                   ],
                   "use_effect": [
-                    { "action": "collect_current_player_front_cards" },
-                    { "action": "move_this_card_to_removed_from_game" },
-                    { "action": "collect_all_board_cards" },
-                    { "action": "shuffle_collection" },
-                    { "action": "redistribute_collection_to_board_face_down" }
+                    {
+                      "action": "collect_current_player_front_cards"
+                    },
+                    {
+                      "action": "move_this_card_to_removed_from_game"
+                    },
+                    {
+                      "action": "collect_all_board_cards"
+                    },
+                    {
+                      "action": "shuffle_collection"
+                    },
+                    {
+                      "action": "redistribute_collection_to_board_face_down"
+                    }
                   ]
                 }
               }
@@ -210,11 +306,21 @@
           },
           {
             "else": [
-              { "action": "collect_current_player_front_cards" },
-              { "action": "move_this_card_to_removed_from_game" },
-              { "action": "collect_all_board_cards" },
-              { "action": "shuffle_collection" },
-              { "action": "redistribute_collection_to_board_face_down" }
+              {
+                "action": "collect_current_player_front_cards"
+              },
+              {
+                "action": "move_this_card_to_removed_from_game"
+              },
+              {
+                "action": "collect_all_board_cards"
+              },
+              {
+                "action": "shuffle_collection"
+              },
+              {
+                "action": "redistribute_collection_to_board_face_down"
+              }
             ]
           }
         ]
@@ -231,11 +337,17 @@
       "keep_zone": "player_front_face_up",
       "visibility_when_kept": "face_up",
       "can_bluff_as_empty": false,
-      "tags": ["item", "weapon"],
+      "tags": [
+        "item",
+        "weapon"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "move_card_to_player_front", "face_up": true }
+          {
+            "action": "move_card_to_player_front",
+            "face_up": true
+          }
         ]
       }
     },
@@ -250,34 +362,63 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": true,
-      "tags": ["room", "ammo_trigger"],
+      "tags": [
+        "room",
+        "ammo_trigger"
+      ],
       "on_flip": {
         "mode": "branch",
         "branches": [
           {
-            "if": { "check": "player_has_card", "value": "pistol" },
+            "if": {
+              "check": "player_has_card",
+              "value": "pistol"
+            },
             "then": [
               {
                 "action": "prompt_choice",
                 "choice_id": "use_bullet",
-                "options": ["yes", "no"]
+                "options": [
+                  "yes",
+                  "no"
+                ]
               },
               {
                 "action": "resolve_choice",
                 "choice_id": "use_bullet",
                 "branches": {
                   "yes": [
-                    { "action": "choose_target_player" },
-                    { "action": "attempt_kill_player", "source": "pistol" },
-                    { "action": "collect_current_card" },
-                    { "action": "collect_all_board_cards" },
-                    { "action": "collect_last_dead_player_front_cards" },
-                    { "action": "shuffle_collection" },
-                    { "action": "redistribute_collection_to_board_face_down" }
+                    {
+                      "action": "choose_target_player"
+                    },
+                    {
+                      "action": "attempt_kill_player",
+                      "source": "pistol"
+                    },
+                    {
+                      "action": "collect_current_card"
+                    },
+                    {
+                      "action": "collect_all_board_cards"
+                    },
+                    {
+                      "action": "collect_last_dead_player_front_cards"
+                    },
+                    {
+                      "action": "shuffle_collection"
+                    },
+                    {
+                      "action": "redistribute_collection_to_board_face_down"
+                    }
                   ],
                   "no": [
-                    { "action": "announce_card_as", "value": "什么都没有的房间" },
-                    { "action": "return_card_to_board_face_down" }
+                    {
+                      "action": "announce_card_as",
+                      "value": "什么都没有的房间"
+                    },
+                    {
+                      "action": "return_card_to_board_face_down"
+                    }
                   ]
                 }
               }
@@ -285,8 +426,13 @@
           },
           {
             "else": [
-              { "action": "announce_card_as", "value": "什么都没有的房间" },
-              { "action": "return_card_to_board_face_down" }
+              {
+                "action": "announce_card_as",
+                "value": "什么都没有的房间"
+              },
+              {
+                "action": "return_card_to_board_face_down"
+              }
             ]
           }
         ]
@@ -303,20 +449,35 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": true,
-      "tags": ["red_card", "trap", "death_source"],
+      "tags": [
+        "red_card",
+        "trap",
+        "death_source"
+      ],
       "on_flip": {
         "mode": "branch",
         "branches": [
           {
-            "if": { "check": "player_role_is", "value": "killer" },
+            "if": {
+              "check": "player_role_is",
+              "value": "killer"
+            },
             "then": [
-              { "action": "announce_card_as", "value": "什么都没有的房间" },
-              { "action": "return_card_to_board_face_down" }
+              {
+                "action": "announce_card_as",
+                "value": "什么都没有的房间"
+              },
+              {
+                "action": "return_card_to_board_face_down"
+              }
             ]
           },
           {
             "else": [
-              { "action": "attempt_kill_player", "source": "killer_trap" }
+              {
+                "action": "attempt_kill_player",
+                "source": "killer_trap"
+              }
             ]
           }
         ]
@@ -333,14 +494,25 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": false,
-      "tags": ["clue", "peek"],
+      "tags": [
+        "clue",
+        "peek"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "choose_board_face_down_card" },
-          { "action": "peek_chosen_card" },
-          { "action": "return_peeked_card_to_board_face_down" },
-          { "action": "move_this_card_to_removed_from_game" }
+          {
+            "action": "choose_board_face_down_card"
+          },
+          {
+            "action": "peek_chosen_card"
+          },
+          {
+            "action": "return_peeked_card_to_board_face_down"
+          },
+          {
+            "action": "move_this_card_to_removed_from_game"
+          }
         ]
       }
     },
@@ -355,20 +527,34 @@
       "keep_zone": null,
       "visibility_when_kept": null,
       "can_bluff_as_empty": false,
-      "tags": ["clue", "identity_check"],
+      "tags": [
+        "clue",
+        "identity_check"
+      ],
       "on_flip": {
         "mode": "steps",
         "steps": [
-          { "action": "choose_target_player_with_face_down_key" },
-          { "action": "reveal_one_face_down_key_of_target" },
+          {
+            "action": "choose_target_player_with_face_down_key"
+          },
+          {
+            "action": "choose_one_face_down_key_of_target"
+          },
+          {
+            "action": "reveal_selected_face_down_key_of_target"
+          },
           {
             "action": "if_revealed_card_matches",
             "card_id": "killer_key",
             "then": [
-              { "action": "move_revealed_card_to_removed_from_game" }
+              {
+                "action": "move_revealed_card_to_removed_from_game"
+              }
             ]
           },
-          { "action": "move_this_card_to_removed_from_game" }
+          {
+            "action": "move_this_card_to_removed_from_game"
+          }
         ]
       }
     }
@@ -402,12 +588,27 @@
         "name": "基础版开局规则",
         "trigger": "on_game_start",
         "steps": [
-          { "action": "create_deck_from_card_counts" },
-          { "action": "shuffle_deck" },
-          { "action": "move_all_cards_to_board_face_down" },
-          { "action": "set_all_players_role", "role": "normal" },
-          { "action": "set_all_players_alive", "value": true },
-          { "action": "set_current_player_index", "value": 0 }
+          {
+            "action": "create_deck_from_card_counts"
+          },
+          {
+            "action": "shuffle_deck"
+          },
+          {
+            "action": "move_all_cards_to_board_face_down"
+          },
+          {
+            "action": "set_all_players_role",
+            "role": "normal"
+          },
+          {
+            "action": "set_all_players_alive",
+            "value": true
+          },
+          {
+            "action": "set_current_player_index",
+            "value": 0
+          }
         ]
       },
       {
@@ -416,9 +617,15 @@
         "trigger": "after_key_enters_player_front",
         "branches": [
           {
-            "if": { "check": "team_total_keys_at_least", "value": 4 },
+            "if": {
+              "check": "team_total_keys_at_least",
+              "value": 4
+            },
             "then": [
-              { "action": "run_rule", "rule_id": "fourth_key_trigger" }
+              {
+                "action": "run_rule",
+                "rule_id": "fourth_key_trigger"
+              }
             ]
           }
         ]
@@ -428,13 +635,28 @@
         "name": "第四把钥匙出现规则",
         "trigger": "when_total_keys_in_front_reaches_4",
         "steps": [
-          { "action": "collect_all_player_front_keys_face_down" },
-          { "action": "shuffle_collection" },
-          { "action": "remove_one_card_by_id_from_collection", "value": "killer_key" },
-          { "action": "collect_all_board_cards" },
-          { "action": "add_remaining_collection_to_board_collection" },
-          { "action": "shuffle_collection" },
-          { "action": "redistribute_collection_to_board_face_down" }
+          {
+            "action": "collect_all_player_front_keys_face_down"
+          },
+          {
+            "action": "shuffle_collection"
+          },
+          {
+            "action": "remove_one_card_by_id_from_collection",
+            "value": "killer_key"
+          },
+          {
+            "action": "collect_all_board_cards"
+          },
+          {
+            "action": "add_remaining_collection_to_board_collection"
+          },
+          {
+            "action": "shuffle_collection"
+          },
+          {
+            "action": "redistribute_collection_to_board_face_down"
+          }
         ],
         "notes": [
           "已经成为杀人鬼的玩家不会失去杀人鬼身份。"
@@ -445,19 +667,31 @@
         "name": "逃生挑战",
         "trigger": "on_exit_card_and_keys_ready",
         "steps": [
-          { "action": "choose_three_keys_from_all_players" },
-          { "action": "reveal_chosen_keys" }
+          {
+            "action": "choose_three_keys_from_all_players"
+          },
+          {
+            "action": "reveal_chosen_keys"
+          }
         ],
         "branches": [
           {
-            "if": { "check": "revealed_keys_all_real" },
+            "if": {
+              "check": "revealed_keys_all_real"
+            },
             "then": [
-              { "action": "set_winner", "value": "all_non_killer_players" }
+              {
+                "action": "set_winner",
+                "value": "all_non_killer_players"
+              }
             ]
           },
           {
             "else": [
-              { "action": "set_winner", "value": "all_killers" }
+              {
+                "action": "set_winner",
+                "value": "all_killers"
+              }
             ]
           }
         ]
@@ -467,11 +701,21 @@
         "name": "玩家死亡处理",
         "trigger": "when_player_dies",
         "steps": [
-          { "action": "collect_dead_player_front_cards" },
-          { "action": "collect_all_board_cards" },
-          { "action": "shuffle_collection" },
-          { "action": "redistribute_collection_to_board_face_down" },
-          { "action": "remove_last_dead_player_from_game" }
+          {
+            "action": "collect_dead_player_front_cards"
+          },
+          {
+            "action": "collect_all_board_cards"
+          },
+          {
+            "action": "shuffle_collection"
+          },
+          {
+            "action": "redistribute_collection_to_board_face_down"
+          },
+          {
+            "action": "remove_last_dead_player_from_game"
+          }
         ]
       }
     ],
@@ -499,7 +743,10 @@
       {
         "id": "killer_red_card_exception",
         "applies_to_role": "killer",
-        "scope_cards": ["killer_trap", "sleep_gas"],
+        "scope_cards": [
+          "killer_trap",
+          "sleep_gas"
+        ],
         "effect": "killer_may_pretend_empty_or_use_allowed_branch"
       },
       {
@@ -520,12 +767,16 @@
   "action_specs": [
     {
       "id": "announce_card",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "向所有玩家公开宣告当前翻开的牌是什么。"
     },
     {
       "id": "announce_card_as",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "将当前翻开的牌伪装成另一种牌并向外宣告。"
     },
     {
@@ -535,27 +786,39 @@
     },
     {
       "id": "move_card_to_player_front",
-      "params": ["face_up"],
+      "params": [
+        "face_up"
+      ],
       "description": "将当前翻开的牌移到当前玩家面前。"
     },
     {
       "id": "set_player_role",
-      "params": ["role"],
+      "params": [
+        "role"
+      ],
       "description": "将当前玩家身份设置为指定角色。"
     },
     {
       "id": "run_rule",
-      "params": ["rule_id"],
+      "params": [
+        "rule_id"
+      ],
       "description": "执行指定系统规则。"
     },
     {
       "id": "prompt_choice",
-      "params": ["choice_id", "options"],
+      "params": [
+        "choice_id",
+        "options"
+      ],
       "description": "让当前玩家作出一个选择。"
     },
     {
       "id": "resolve_choice",
-      "params": ["choice_id", "branches"],
+      "params": [
+        "choice_id",
+        "branches"
+      ],
       "description": "根据已选项执行不同分支。"
     },
     {
@@ -585,7 +848,9 @@
     },
     {
       "id": "attempt_kill_player",
-      "params": ["source"],
+      "params": [
+        "source"
+      ],
       "description": "尝试令目标玩家死亡；死亡前需检查被动防御效果。"
     },
     {
@@ -630,7 +895,10 @@
     },
     {
       "id": "if_revealed_card_matches",
-      "params": ["card_id", "then"],
+      "params": [
+        "card_id",
+        "then"
+      ],
       "description": "若刚刚翻开的牌与指定 id 匹配，则执行后续动作。"
     },
     {
@@ -650,7 +918,9 @@
     },
     {
       "id": "set_winner",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "设置胜利者并结束游戏。"
     },
     {
@@ -660,7 +930,9 @@
     },
     {
       "id": "remove_one_card_by_id_from_collection",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "从临时收集区中移除指定 id 的一张牌。"
     },
     {
@@ -720,18 +992,34 @@
     },
     {
       "id": "set_all_players_role",
-      "params": ["role"],
+      "params": [
+        "role"
+      ],
       "description": "初始化所有玩家身份。"
     },
     {
       "id": "set_all_players_alive",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "初始化所有玩家存活状态。"
     },
     {
       "id": "set_current_player_index",
-      "params": ["value"],
+      "params": [
+        "value"
+      ],
       "description": "设置起始玩家索引。"
+    },
+    {
+      "id": "choose_one_face_down_key_of_target",
+      "params": [],
+      "description": "???????????????"
+    },
+    {
+      "id": "reveal_selected_face_down_key_of_target",
+      "params": [],
+      "description": "???????????????"
     }
   ],
   "state_schema": {

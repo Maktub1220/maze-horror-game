@@ -41,6 +41,24 @@ export function serializeStateForPlayer(
       ...p,
       role: p.id === viewerPlayerId ? p.role : "hidden",
     })),
+    pending_reaction:
+      serializable.pending_reaction?.player_id === viewerPlayerId
+        ? {
+            ...serializable.pending_reaction,
+            options: serializable.pending_reaction.options.map((option) => ({ ...option })),
+          }
+        : null,
+    event_log: serializable.event_log.filter((event) => {
+      if (event.visibility === "public") return true;
+      if (event.visibility === "actor_only") return event.actor_player_id === viewerPlayerId;
+      if (event.visibility === "actor_and_target") {
+        return (
+          event.actor_player_id === viewerPlayerId ||
+          event.target_player_id === viewerPlayerId
+        );
+      }
+      return false;
+    }),
   };
 
   return JSON.stringify(masked, null, 2);

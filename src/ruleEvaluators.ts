@@ -5,12 +5,14 @@
 } from "./models.js";
 import {
   aliveKillers,
+  alivePlayers,
   allNonKillerPlayers,
   onlyKillersAlive,
   playerHasCard,
   revealedKeysAllReal,
   teamTotalKeys,
 } from "./derivedQueries.js";
+import { emitEvent } from "./events.js";
 
 export function evaluateCheck(
   state: GameState,
@@ -73,18 +75,44 @@ export function checkWinConditions(state: GameState): GameState {
     return state;
   }
 
+  if (alivePlayers(state).length === 0) {
+    const winner = resolveWinnerTarget(state, "all_killers");
+    const endedState: GameState = {
+      ...state,
+      phase: "ended",
+      winner,
+      event_log: [...state.event_log],
+    };
+    emitEvent(endedState, {
+      type: "winner",
+      value: winner.team,
+      text: `胜利阵营：${winner.team}`,
+      visibility: "public",
+      payload: { player_ids: winner.player_ids },
+    });
+    return endedState;
+  }
+
   const killerLastAliveCondition = state.rules_package.rules.win_conditions.find(
     (condition) => condition.trigger === "only_killers_alive",
   );
 
   if (killerLastAliveCondition && onlyKillersAlive(state)) {
     const winner = resolveWinnerTarget(state, killerLastAliveCondition.winner_target);
-    return {
+    const endedState: GameState = {
       ...state,
       phase: "ended",
       winner,
-      event_log: [...state.event_log, { type: "winner", value: winner.team }],
+      event_log: [...state.event_log],
     };
+    emitEvent(endedState, {
+      type: "winner",
+      value: winner.team,
+      text: `胜利阵营：${winner.team}`,
+      visibility: "public",
+      payload: { player_ids: winner.player_ids },
+    });
+    return endedState;
   }
 
   return state;
