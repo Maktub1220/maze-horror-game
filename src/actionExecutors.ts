@@ -6,6 +6,7 @@
   EffectContext,
   EffectDefinition,
   GameState,
+  NO_INSPECT_TARGET_PLAYER_ID,
   PendingChoiceKind,
   RuleDefinition,
 } from "./models.js";
@@ -460,12 +461,13 @@ function executeAction(state: GameState, step: ActionStep, context: EffectContex
         return state;
       }
 
-      const options = alivePlayers(state)
+      const targetOptions = alivePlayers(state)
         .filter((player) =>
           player.front_face_down_cards.some((card) => isKeyCard(state, card.card_id)),
         )
         .map((player) => player.id)
         .filter((id) => id !== context.current_player_id);
+      const options = [...targetOptions, NO_INSPECT_TARGET_PLAYER_ID];
 
       addPendingChoice(
         state,

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "play": "npm run build && node dist/src/cli.js"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",

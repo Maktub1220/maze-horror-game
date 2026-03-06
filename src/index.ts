@@ -6,6 +6,7 @@ export * from "./derivedQueries.js";
 export * from "./shuffle.js";
 export * from "./testHelpers.js";
 export * from "./loadRules.js";
+export * from "./playerView.js";
 export {
   evaluateCheck,
   resolveWinnerTarget,

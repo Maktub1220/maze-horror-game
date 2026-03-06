@@ -5,12 +5,13 @@ import {
   getLegalActions,
   resolvePendingChoice,
 } from "../src/engine.js";
+import { getPlayerPrivateStatus, serializeStateForPlayer } from "../src/playerView.js";
 import {
   createDeterministicState,
   findBoardCardInstanceId,
   setCurrentPlayer,
 } from "../src/testHelpers.js";
-import { GameState } from "../src/models.js";
+import { GameState, NO_INSPECT_TARGET_PLAYER_ID } from "../src/models.js";
 
 function currentPlayerId(state: GameState): string {
   return state.players[state.current_player_index].id;
@@ -184,12 +185,27 @@ describe("红色的门与杀人鬼的钥匙 - 基础版纯逻辑引擎", () => {
     useState = flipByCardId(useState, u1, "killer_key");
     useState = flipByCardId(useState, u2, "empty_room", 0);
     useState = setCurrentPlayer(useState, u1);
-    useState = flipByCardId(useState, u1, "sleep_gas", 0);
+    const useGasId = findBoardCardInstanceId(useState, "sleep_gas", 0);
+    useState = flipCard(useState, u1, useGasId);
     useState = resolvePendingChoice(useState, u1, { option: "use_effect" });
 
     expect(useState.players.find((p) => p.id === u1)?.role).toBe("killer");
     expect(useState.players.find((p) => p.id === u1)?.front_face_down_cards).toHaveLength(0);
     expect(useState.board_face_down_cards.some((card) => card.card_id === "killer_key")).toBe(true);
+    expect(useState.removed_from_game.some((card) => card.instance_id === useGasId)).toBe(true);
+    expect(useState.board_face_down_cards.some((card) => card.instance_id === useGasId)).toBe(false);
+  });
+
+  it("8.1) 普通玩家触发催眠瓦斯效果后该牌会被移出游戏", () => {
+    let state = createDeterministicState(["A", "B"]);
+    const [p1] = state.players.map((p) => p.id);
+
+    const gasId = findBoardCardInstanceId(state, "sleep_gas", 0);
+    state = flipCard(state, p1, gasId);
+
+    expect(state.pending_choice).toBeNull();
+    expect(state.removed_from_game.some((card) => card.instance_id === gasId)).toBe(true);
+    expect(state.board_face_down_cards.some((card) => card.instance_id === gasId)).toBe(false);
   });
 
   it("9) 持枪玩家翻到有子弹房间可击杀目标并触发重洗", () => {
@@ -221,6 +237,24 @@ describe("红色的门与杀人鬼的钥匙 - 基础版纯逻辑引擎", () => {
     expect(state.players.find((p) => p.id === p1)?.role).toBe("killer");
     expect(state.players.find((p) => p.id === p1)?.front_face_down_cards.some((c) => c.card_id === "killer_key")).toBe(false);
     expect(state.removed_from_game.some((c) => c.card_id === "killer_key")).toBe(true);
+  });
+
+  it("10.1) 看穿违和感可选择谁都不看并伪装为空房间放回场上", () => {
+    let state = createDeterministicState(["A", "B"]);
+    const [p1, p2] = state.players.map((p) => p.id);
+
+    state = flipByCardId(state, p1, "killer_key");
+    state = flipByCardId(state, p2, "sense_discomfort");
+
+    expect(state.pending_choice?.choice_id).toBe("choose_target_player_with_face_down_key");
+    expect(state.pending_choice?.options).toContain(NO_INSPECT_TARGET_PLAYER_ID);
+
+    const senseId = state.current_card_instance_id!;
+    state = resolvePendingChoice(state, p2, { target_player_id: NO_INSPECT_TARGET_PLAYER_ID });
+
+    expect(state.board_face_down_cards.some((c) => c.instance_id === senseId)).toBe(true);
+    expect(state.removed_from_game.some((c) => c.instance_id === senseId)).toBe(false);
+    expect(state.players.find((p) => p.id === p1)?.front_face_down_cards.some((c) => c.card_id === "killer_key")).toBe(true);
   });
 
   it("11) 多个杀人鬼出现后开门失败时所有杀人鬼获胜", () => {
@@ -265,5 +299,24 @@ describe("红色的门与杀人鬼的钥匙 - 基础版纯逻辑引擎", () => {
     const checked = checkWinConditions(state);
     expect(checked.players.find((p) => p.id === p2)).toBeUndefined();
     expect(checked.players.some((p) => p.id === p1 || p.id === p3)).toBe(true);
+  });
+
+  it("13) 玩家私密视图只显示自己的杀人鬼身份", () => {
+    let state = createDeterministicState(["A", "B"]);
+    const [p1, p2] = state.players.map((p) => p.id);
+
+    state = flipByCardId(state, p1, "killer_key");
+
+    const p1Private = getPlayerPrivateStatus(state, p1);
+    const p2Private = getPlayerPrivateStatus(state, p2);
+    expect(p1Private.is_killer).toBe(true);
+    expect(p2Private.is_killer).toBe(false);
+
+    const p2View = JSON.parse(serializeStateForPlayer(state, p2)) as GameState & {
+      players: Array<GameState["players"][number] & { role: "normal" | "killer" | "hidden" }>;
+    };
+
+    expect(p2View.players.find((p) => p.id === p2)?.role).toBe("normal");
+    expect(p2View.players.find((p) => p.id === p1)?.role).toBe("hidden");
   });
 });

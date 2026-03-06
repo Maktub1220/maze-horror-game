@@ -138,6 +138,8 @@ export type PendingChoiceKind =
   | "target_player_with_key"
   | "three_keys";
 
+export const NO_INSPECT_TARGET_PLAYER_ID = "__no_inspect__";
+
 export interface ChoiceState {
   choice_id: string;
   player_id: string;

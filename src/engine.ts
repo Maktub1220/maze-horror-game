@@ -1,10 +1,12 @@
 ﻿import {
+  ActionStep,
   LegalAction,
   GameState,
+  NO_INSPECT_TARGET_PLAYER_ID,
   ResolveChoiceInput,
   ChoiceState,
 } from "./models.js";
-import { getCardByInstanceId, getCurrentPlayer } from "./derivedQueries.js";
+import { getCardByInstanceId, getCardDefinition, getCurrentPlayer } from "./derivedQueries.js";
 import { checkWinConditions as evaluateWinConditions } from "./ruleEvaluators.js";
 import {
   advanceTurn,
@@ -68,6 +70,26 @@ function finalizeResolvedCard(state: GameState): GameState {
   }
 
   return workingState;
+}
+
+function rewriteContinuationForSpecialChoice(
+  state: GameState,
+  pending: ChoiceState,
+  choice: ResolveChoiceInput,
+): ActionStep[] {
+  if (
+    pending.choice_id === "choose_target_player_with_face_down_key" &&
+    pending.kind === "target_player_with_key" &&
+    choice.target_player_id === NO_INSPECT_TARGET_PLAYER_ID
+  ) {
+    const emptyRoomName = getCardDefinition(state, "empty_room").name;
+    return [
+      { action: "announce_card_as", value: emptyRoomName },
+      { action: "return_card_to_board_face_down" },
+    ];
+  }
+
+  return pending.continuation.actions;
 }
 
 export function flipCard(
@@ -134,7 +156,12 @@ export function resolvePendingChoice(
   const context = applyChoiceSelection(pending, choice);
   workingState.pending_choice = null;
 
-  workingState = runActions(workingState, pending.continuation.actions, context);
+  const continuationActions = rewriteContinuationForSpecialChoice(
+    workingState,
+    pending,
+    choice,
+  );
+  workingState = runActions(workingState, continuationActions, context);
 
   if (workingState.pending_choice) {
     return workingState;

@@ -199,6 +199,7 @@
                   ],
                   "use_effect": [
                     { "action": "collect_current_player_front_cards" },
+                    { "action": "move_this_card_to_removed_from_game" },
                     { "action": "collect_all_board_cards" },
                     { "action": "shuffle_collection" },
                     { "action": "redistribute_collection_to_board_face_down" }
@@ -210,6 +211,7 @@
           {
             "else": [
               { "action": "collect_current_player_front_cards" },
+              { "action": "move_this_card_to_removed_from_game" },
               { "action": "collect_all_board_cards" },
               { "action": "shuffle_collection" },
               { "action": "redistribute_collection_to_board_face_down" }
